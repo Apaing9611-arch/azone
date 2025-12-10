@@ -1,0 +1,30 @@
+Nginx Quick Start Commands
+============================
+
+Copy these commands to PowerShell (NOT in config file):
+
+1. Extract Nginx:
+   - Extract nginx-1.28.0.zip to C:\nginx
+
+2. Edit Config:
+   - Open: C:\nginx\conf\nginx.conf
+   - Add server block from NGINX_CONFIG_WINDOWS.conf
+
+3. Test Config:
+   cd C:\nginx
+   .\nginx.exe -t
+
+4. Start Nginx:
+   cd C:\nginx
+   start nginx
+
+5. Check Status:
+   Get-Process nginx
+
+6. Open Firewall:
+   New-NetFirewallRule -DisplayName "Nginx HTTP" -Direction Inbound -LocalPort 80 -Protocol TCP -Action Allow
+
+7. Test:
+   - Browser: http://paing.xyz
+   - Browser: http://18.138.169.114
+
