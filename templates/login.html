@@ -94,7 +94,12 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">စကားဝှက်</label>
-                <input type="password" class="form-control" name="password" minlength="6" required>
+                <input type="password" class="form-control" name="password" id="password" minlength="6" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">စကားဝှက်အတည်ပြုရန်</label>
+                <input type="password" class="form-control" name="password_confirm" id="password_confirm" minlength="6" required>
+                <small class="text-muted d-block mt-1" id="password-match"></small>
             </div>
             <div class="mb-3">
                 <label class="form-label">အခန်းကဏ္ဍ</label>
@@ -107,11 +112,11 @@
             </div>
             <button type="submit" class="btn btn-primary">စာရင်းသွင်းရန်</button>
             <div class="text-center mt-3">
-                <small>အကောင့်ရှိပြီးသားလား? <a href="{{ url_for('login') }}" class="switch-link">ဝင်ရောက်ရန် သို့ပြန်သွားမယ်</a></small>
+                <small>အကောင့်ရှိပြီးသားလား? <a href="{{ url_for('auth.login') }}" class="switch-link">ဝင်ရောက်ရန် သို့ပြန်သွားမယ်</a></small>
             </div>
         </form>
         {% else %}
-        <form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}">
+        <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
             <div class="mb-3">
                 <label class="form-label">အသုံးပြုသူအမည်</label>
                 <input type="text" class="form-control" name="username" required>
@@ -128,7 +133,7 @@
             </div>
             <button type="submit" class="btn btn-primary">ဝင်ရောက်ရန်</button>
             <div class="text-center mt-3">
-                <small>အကောင့်မရှိသေးဘူးလား? <a href="{{ url_for('register') }}" class="switch-link">စာရင်းသွင်းရန် အသစ်ဖွင့်မယ်</a></small>
+                <small>အကောင့်မရှိသေးဘူးလား? <a href="{{ url_for('auth.register') }}" class="switch-link">စာရင်းသွင်းရန် အသစ်ဖွင့်မယ်</a></small>
             </div>
         </form>
         {% endif %}
@@ -138,6 +143,37 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Password confirmation validation
+        {% if mode == 'register' %}
+        document.addEventListener('DOMContentLoaded', function() {
+            const password = document.getElementById('password');
+            const passwordConfirm = document.getElementById('password_confirm');
+            const passwordMatch = document.getElementById('password-match');
+            
+            function checkPasswordMatch() {
+                if (passwordConfirm.value === '') {
+                    passwordMatch.textContent = '';
+                    passwordConfirm.setCustomValidity('');
+                    return;
+                }
+                
+                if (password.value === passwordConfirm.value) {
+                    passwordMatch.textContent = '✓ စကားဝှက်များ တူညီပါသည်';
+                    passwordMatch.style.color = '#10b981';
+                    passwordConfirm.setCustomValidity('');
+                } else {
+                    passwordMatch.textContent = '✗ စကားဝှက်များ မတူညီပါ';
+                    passwordMatch.style.color = '#ef4444';
+                    passwordConfirm.setCustomValidity('Passwords do not match');
+                }
+            }
+            
+            password.addEventListener('input', checkPasswordMatch);
+            passwordConfirm.addEventListener('input', checkPasswordMatch);
+        });
+        {% endif %}
+    </script>
 </body>
 </html>
 

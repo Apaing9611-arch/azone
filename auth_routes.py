@@ -144,31 +144,103 @@ def register():
         # Validation
         if not username or len(username) < 3:
             flash('Username သည် အနည်းဆုံး ၃ လုံး ရှိရမည်။', 'error')
-            return render_template('login.html', register_mode=True)
+            return render_template('login.html', mode='register')
         
         if not email or '@' not in email:
             flash('မှန်ကန်သော email address ထည့်သွင်းပါ။', 'error')
-            return render_template('login.html', register_mode=True)
+            return render_template('login.html', mode='register')
         
         if not password or len(password) < 6:
             flash('Password သည် အနည်းဆုံး ၆ လုံး ရှိရမည်။', 'error')
-            return render_template('login.html', register_mode=True)
+            return render_template('login.html', mode='register')
         
         if password != password_confirm:
             flash('Passwords မတူညီပါ။', 'error')
-            return render_template('login.html', register_mode=True)
+            return render_template('login.html', mode='register')
         
         # Create user
         result = auth_manager.create_user(username, email, password, role)
         
         if not result.get('success'):
             flash(result.get('error', 'Registration failed'), 'error')
-            return render_template('login.html', register_mode=True)
+            return render_template('login.html', mode='register')
         
-        flash('Registration အောင်မြင်ပါသည်။ ကျေးဇူးပြု၍ login ဝင်ပါ။', 'success')
+        # Generate and send verification code
+        from email_service import generate_verification_code, send_verification_email
+        verification_code = generate_verification_code()
+        
+        if auth_manager.create_email_verification_code(result['user_id'], email, verification_code):
+            send_result = send_verification_email(email, verification_code, username)
+            if send_result.get('success'):
+                flash('Registration အောင်မြင်ပါသည်။ ကျေးဇူးပြု၍ email verification code ထည့်သွင်းပါ။', 'success')
+                return redirect(url_for('auth.verify_email', email=email))
+            else:
+                flash(f'Registration successful but email sending failed. Verification code: {verification_code}', 'warning')
+                return redirect(url_for('auth.verify_email', email=email))
+        else:
+            flash('Registration successful but failed to create verification code.', 'error')
+            return render_template('login.html', mode='register')
+    
+    return render_template('login.html', mode='register')
+
+@auth_bp.route('/verify-email', methods=['GET', 'POST'])
+def verify_email():
+    """Email verification page"""
+    email = request.args.get('email') or request.form.get('email', '')
+    
+    if not email:
+        flash('Email address is required.', 'error')
+        return redirect(url_for('auth.register'))
+    
+    if request.method == 'POST':
+        code = request.form.get('code', '').strip()
+        
+        if not code:
+            flash('Please enter the verification code.', 'error')
+            return render_template('verify_email.html', email=email)
+        
+        # Verify code
+        result = auth_manager.verify_email_code(email, code)
+        
+        if result.get('success'):
+            flash('Email verification successful! You can now login.', 'success')
+            return redirect(url_for('auth.login'))
+        else:
+            flash(result.get('error', 'Invalid verification code.'), 'error')
+            return render_template('verify_email.html', email=email)
+    
+    return render_template('verify_email.html', email=email)
+
+@auth_bp.route('/resend-verification', methods=['POST'])
+def resend_verification():
+    """Resend verification code"""
+    email = request.form.get('email', '').strip()
+    
+    if not email:
+        flash('Email address is required.', 'error')
+        return redirect(url_for('auth.register'))
+    
+    user = auth_manager.get_user_by_email(email)
+    
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('auth.register'))
+    
+    if user.get('email_verified'):
+        flash('Email is already verified.', 'info')
         return redirect(url_for('auth.login'))
     
-    return render_template('login.html', register_mode=True)
+    result = auth_manager.resend_verification_code(user['id'], email)
+    
+    if result.get('success'):
+        if result.get('code'):
+            flash(f'Verification code resent. Code: {result["code"]}', 'info')
+        else:
+            flash('Verification code has been sent to your email.', 'success')
+        return redirect(url_for('auth.verify_email', email=email))
+    else:
+        flash(result.get('error', 'Failed to resend verification code.'), 'error')
+        return redirect(url_for('auth.verify_email', email=email))
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():

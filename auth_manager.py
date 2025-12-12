@@ -23,6 +23,7 @@ SESSION_TIMEOUT = timedelta(hours=24)
 REMEMBER_ME_DURATION = timedelta(days=30)
 PASSWORD_RESET_TOKEN_EXPIRY = timedelta(hours=1)
 CSRF_TOKEN_EXPIRY = timedelta(hours=1)
+EMAIL_VERIFICATION_CODE_EXPIRY = timedelta(minutes=15)
 
 def get_auth_db_connection():
     """Create and return a database connection"""
@@ -49,6 +50,7 @@ def init_auth_database():
             failed_login_attempts INTEGER DEFAULT 0,
             last_login TEXT,
             last_password_change TEXT,
+            email_verified INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
@@ -108,6 +110,20 @@ def init_auth_database():
         )
     ''')
     
+    # Email verification codes
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS email_verification_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            email TEXT NOT NULL,
+            code TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            expires_at TEXT NOT NULL,
+            used INTEGER DEFAULT 0,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ''')
+    
     # Create indexes
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions(user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_sessions_token ON user_sessions(session_token)')
@@ -115,6 +131,8 @@ def init_auth_database():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON password_reset_tokens(token)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_login_attempts_username ON login_attempts(username)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_csrf_session ON csrf_tokens(session_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_verification_user ON email_verification_codes(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_verification_email ON email_verification_codes(email)')
     
     conn.commit()
     conn.close()
@@ -140,6 +158,7 @@ def migrate_users_table():
             'failed_login_attempts': 'INTEGER DEFAULT 0',
             'last_login': 'TEXT',
             'last_password_change': 'TEXT',
+            'email_verified': 'INTEGER DEFAULT 0',
             'updated_at': 'TEXT DEFAULT CURRENT_TIMESTAMP'
         }
         
@@ -188,8 +207,8 @@ def create_user(username, email, password, role='viewer'):
         now = datetime.now().isoformat()
         
         cursor.execute('''
-            INSERT INTO users (username, email, password_hash, role, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 1, ?, ?)
+            INSERT INTO users (username, email, password_hash, role, is_active, email_verified, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 1, 0, ?, ?)
         ''', (username, email, password_hash, role, now, now))
         
         user_id = cursor.lastrowid
@@ -228,6 +247,11 @@ def authenticate_user(username, password, ip_address=None, user_agent=None, reme
         if not user_dict.get('is_active', 1):
             log_login_attempt(username, ip_address, user_agent, False, 'Account inactive')
             return {'success': False, 'error': 'Account is inactive'}
+        
+        # Check if email is verified
+        if not user_dict.get('email_verified', 0):
+            log_login_attempt(username, ip_address, user_agent, False, 'Email not verified')
+            return {'success': False, 'error': 'Please verify your email address before logging in. Check your email for the verification code.'}
         
         # Check if account is locked
         if user_dict.get('is_locked', 0):
@@ -628,6 +652,78 @@ def validate_csrf_token(session_id, token):
         return result is not None
     finally:
         conn.close()
+
+def create_email_verification_code(user_id, email, code):
+    """Create an email verification code"""
+    conn = get_auth_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        expires_at = (datetime.now() + EMAIL_VERIFICATION_CODE_EXPIRY).isoformat()
+        
+        # Invalidate old codes for this user
+        cursor.execute('UPDATE email_verification_codes SET used = 1 WHERE user_id = ? AND used = 0', (user_id,))
+        
+        # Create new code
+        cursor.execute('''
+            INSERT INTO email_verification_codes (user_id, email, code, expires_at)
+            VALUES (?, ?, ?, ?)
+        ''', (user_id, email, code, expires_at))
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def verify_email_code(email, code):
+    """Verify an email verification code"""
+    conn = get_auth_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            SELECT evc.*, u.id as user_id
+            FROM email_verification_codes evc
+            JOIN users u ON evc.user_id = u.id
+            WHERE evc.email = ? AND evc.code = ? AND evc.used = 0 AND evc.expires_at > ?
+        ''', (email, code, datetime.now().isoformat()))
+        
+        result = cursor.fetchone()
+        if result:
+            result_dict = dict(result)
+            user_id = result_dict['user_id']
+            
+            # Mark code as used
+            cursor.execute('UPDATE email_verification_codes SET used = 1 WHERE id = ?', (result_dict['id'],))
+            
+            # Mark email as verified
+            cursor.execute('UPDATE users SET email_verified = 1 WHERE id = ?', (user_id,))
+            
+            conn.commit()
+            return {'success': True, 'user_id': user_id}
+        
+        return {'success': False, 'error': 'Invalid or expired verification code'}
+    except Exception as e:
+        conn.rollback()
+        return {'success': False, 'error': str(e)}
+    finally:
+        conn.close()
+
+def resend_verification_code(user_id, email):
+    """Resend verification code for a user"""
+    from email_service import generate_verification_code, send_verification_email
+    
+    code = generate_verification_code()
+    user = get_user_by_id(user_id)
+    
+    if create_email_verification_code(user_id, email, code):
+        result = send_verification_email(email, code, user.get('username') if user else None)
+        return {'success': True, 'code': code if not result.get('success') else None}
+    
+    return {'success': False, 'error': 'Failed to create verification code'}
 
 # Initialize database on import
 init_auth_database()
