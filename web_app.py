@@ -53,6 +53,8 @@ try:
 except ImportError:
     app.secret_key = 'your-secret-key-here-change-in-production'  # Fallback if config not available
 
+ADMIN_ROLES = ('owner', 'editor')
+
 # Flask-Login configuration
 login_manager = LoginManager()
 login_manager.login_view = 'login'
@@ -69,6 +71,15 @@ class AppUser(UserMixin):
 
     def get_id(self):
         return str(self.id)
+
+
+def is_admin(user=None):
+    """Return True when the supplied (or current) user has an admin role."""
+    user_obj = user or current_user
+    return bool(
+        getattr(user_obj, 'is_authenticated', False)
+        and getattr(user_obj, 'role', None) in ADMIN_ROLES
+    )
 
 
 @login_manager.user_loader
@@ -174,7 +185,8 @@ def inject_user():
     """Inject current user info for templates."""
     return {
         'current_user': current_user if current_user.is_authenticated else None,
-        'get_webhook_url': get_webhook_url
+        'get_webhook_url': get_webhook_url,
+        'is_admin': is_admin()
     }
 
 @app.route('/')
@@ -182,20 +194,29 @@ def index():
     """Main Dashboard Page - CRM Dashboard"""
     if not current_user.is_authenticated:
         return redirect(url_for('login'))
-    # Show CRM Dashboard (index.html)
+    return redirect(url_for('bot_builder'))
+
+
+@app.route('/admin')
+@login_required
+@role_required(*ADMIN_ROLES)
+def admin_home():
+    """Admin-only management dashboard."""
     return render_template('index.html')
 
 @app.route('/dashboard')
 @login_required
+@role_required(*ADMIN_ROLES)
 def dashboard():
-    """CRM Dashboard Page"""
-    return render_template('index.html')
+    """Legacy CRM dashboard route (admin-only)."""
+    return admin_home()
 
 @app.route('/crm')
 @login_required
+@role_required(*ADMIN_ROLES)
 def crm_dashboard():
     """CRM Dashboard Page (alternative route)"""
-    return render_template('index.html')
+    return admin_home()
 
 @app.route('/bot-builder')
 @login_required
@@ -240,6 +261,7 @@ def bot_builder():
 
 @app.route('/analytics')
 @login_required
+@role_required(*ADMIN_ROLES)
 def analytics():
     """Analytics UI Page"""
     # Get analytics data
@@ -275,6 +297,7 @@ def analytics():
 
 @app.route('/my-bots')
 @login_required
+@role_required(*ADMIN_ROLES)
 def my_bots():
     """My Bots List Page"""
     # Fetch all bots from database
@@ -291,6 +314,7 @@ def my_bots():
 
 @app.route('/templates')
 @login_required
+@role_required(*ADMIN_ROLES)
 def templates_page():
     """Templates Library Page"""
     try:
@@ -911,7 +935,9 @@ def login():
         if user and check_password_hash(user['password_hash'], password):
             login_user(AppUser(user), remember=remember)
             flash('Login အောင်မြင်ပါသည်။', 'success')
-            next_url = request.args.get('next') or url_for('dashboard')
+            next_url = request.args.get('next')
+            if not next_url:
+                next_url = url_for('bot_builder')
             return redirect(next_url)
         else:
             error = 'Username သို့မဟုတ် Password မမှန်ပါ။'

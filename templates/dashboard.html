@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/form-validation.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading-feedback.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // Prevent flash of light mode - apply dark mode immediately
         (function() {
@@ -21,6 +22,281 @@
                 }
             }
         })();
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const wizardRoot = document.getElementById('miniBotBuilderWizard');
+            if (!wizardRoot) {
+                return;
+            }
+
+            const wizardSteps = [
+                {
+                    id: 'token',
+                    heading: 'Enter Your Telegram Bot Token',
+                    description: 'Use this guided wizard to set up your Telegram bot quickly.',
+                    label: 'Telegram Bot Token',
+                    placeholder: 'Ex: 123456:ABC-DEF1234ghIkl...',
+                    hint: 'Paste the BotFather token you received. We store it securely.',
+                    type: 'text'
+                },
+                {
+                    id: 'bot_name',
+                    heading: 'Name your bot & niche',
+                    description: 'Give your bot a memorable name and describe what it should do.',
+                    label: 'Bot Name',
+                    placeholder: 'e.g., Mini Shop Helper',
+                    hint: 'ဘာသာစကားနှစ်မျိုးနဲ့ ထည့်သွင်းလိုက်ပါ – ရှာဖွေရန် လွယ်ကူစေပါတယ်။',
+                    type: 'text'
+                },
+                {
+                    id: 'greeting',
+                    heading: 'Write the first greeting',
+                    description: 'တစ်ယောက်ချင်းစီကို ကြိုဆိုမည့် စိတ်ပျော်ရွှင်ဆုံး စာသား ထည့်ပါ။',
+                    label: 'Greeting Message',
+                    placeholder: 'မင်္ဂလာပါ၊ A Zone Studio မှကြိုဆိုပါတယ်... ',
+                    hint: 'သုံးစွဲသူတွေ စတင်ပြောစတဲ့ချိန်မှာ ပေါ်လာမယ့် စာသားပါ။',
+                    type: 'textarea'
+                },
+                {
+                    id: 'primary_action',
+                    heading: 'Define the first action',
+                    description: 'First action or CTA to keep the conversation flowing.',
+                    label: 'Primary Action',
+                    placeholder: 'ဥပမာ - စျေးနှုန်း မေးပါ / Support ကို ခေါ်ပါ',
+                    hint: 'ဒီ action ကို အောက်က steps ထဲမှာတိုးချဲ့နိုင်ပါတယ်။',
+                    type: 'text'
+                },
+                {
+                    id: 'publish',
+                    heading: 'Review & launch',
+                    description: 'Everything looks ready. Publish whenever you are happy with the flow.',
+                    label: 'Final note (optional)',
+                    placeholder: 'တင်ပြချင်သော မှတ်ချက်များ...',
+                    hint: 'Setup ပြီးပါပြီ။ အောက်က Bot Builder Form ကို ဆက်ဖြည့်ပါ။',
+                    type: 'summary',
+                    summary: 'All steps completed! Scroll down to continue building your bot.'
+                }
+            ];
+
+            const stepText = document.getElementById('wizardStepText');
+            const progressIndicator = document.getElementById('wizardProgressIndicator');
+            const title = document.getElementById('wizardTitle');
+            const subtitle = document.getElementById('wizardSubtitle');
+            const fieldLabel = document.getElementById('wizardFieldLabel');
+            const hint = document.getElementById('wizardFieldHint');
+            const fieldContainer = document.getElementById('wizardFieldContainer');
+            const nextBtn = document.getElementById('wizardNextBtn');
+            const backBtn = document.getElementById('wizardBackBtn');
+            const wizardState = {};
+            let currentStep = 0;
+
+            function buildField(step) {
+                if (!fieldContainer) {
+                    return;
+                }
+
+                let markup = '';
+                if (step.type === 'textarea') {
+                    const value = wizardState[step.id] || '';
+                    markup = `<textarea class="form-control" id="wizardFieldInput" rows="4" placeholder="${step.placeholder || ''}">${value}</textarea>`;
+                } else if (step.type === 'select') {
+                    const options = (step.options || []).map(option => {
+                        const selected = wizardState[step.id] === option.value ? 'selected' : '';
+                        return `<option value="${option.value}" ${selected}>${option.label}</option>`;
+                    }).join('');
+                    markup = `<select class="form-select" id="wizardFieldInput">${options}</select>`;
+                } else if (step.type === 'summary') {
+                    markup = `
+                        <div class="alert alert-success mb-3" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>${step.summary || 'All steps completed.'}
+                        </div>
+                    `;
+                } else {
+                    const value = wizardState[step.id] || '';
+                    markup = `<input type="${step.inputType || 'text'}" class="form-control" id="wizardFieldInput" placeholder="${step.placeholder || ''}" value="${value}" autocomplete="off">`;
+                }
+
+                fieldContainer.innerHTML = markup;
+            }
+
+            function renderStep() {
+                const step = wizardSteps[currentStep];
+                if (!step) return;
+
+                stepText.textContent = `Step ${currentStep + 1} of ${wizardSteps.length}`;
+                progressIndicator.style.width = `${((currentStep + 1) / wizardSteps.length) * 100}%`;
+                title.textContent = step.heading;
+                subtitle.textContent = step.description;
+                fieldLabel.textContent = step.label || '';
+                fieldLabel.classList.toggle('d-none', step.type === 'summary');
+                hint.textContent = step.hint || '';
+
+                buildField(step);
+
+                backBtn.disabled = currentStep === 0;
+                if (step.type === 'summary') {
+                    nextBtn.innerHTML = `<i class="fas fa-check me-1"></i> Done`;
+                } else if (currentStep === wizardSteps.length - 1) {
+                    nextBtn.innerHTML = `Finish <i class="fas fa-check ms-1"></i>`;
+                } else {
+                    nextBtn.innerHTML = `Next <i class="fas fa-arrow-right ms-1"></i>`;
+                }
+            }
+
+            function persistValue() {
+                const field = document.getElementById('wizardFieldInput');
+                const step = wizardSteps[currentStep];
+                if (!field || !step || step.type === 'summary') {
+                    return;
+                }
+                wizardState[step.id] = field.value.trim();
+            }
+
+            nextBtn.addEventListener('click', function () {
+                persistValue();
+                if (currentStep < wizardSteps.length - 1) {
+                    currentStep += 1;
+                    renderStep();
+                    return;
+                }
+                wizardRoot.classList.add('wizard-finished');
+                nextBtn.disabled = true;
+                hint.textContent = 'အမြန်စတင်နိုင်ပါပြီ။ အောက်ပါတော့ Form ကို အသုံးပြုပါ။';
+            });
+
+            backBtn.addEventListener('click', function () {
+                if (currentStep === 0) return;
+                currentStep -= 1;
+                renderStep();
+            });
+
+            renderStep();
+        });
+    </script>
+    <script>
+        (function() {
+            if (typeof window.fetch === 'function') {
+                const originalFetch = window.fetch;
+                window.fetch = async function(...args) {
+                    const [resource] = args;
+                    console.log('📡 Sending Request...', resource);
+                    try {
+                        const response = await originalFetch(...args);
+                        const statusInfo = response && typeof response.status !== 'undefined'
+                            ? ` (status ${response.status})`
+                            : '';
+                        console.log(`✅ Success: ${resource}${statusInfo}`);
+                        if (response && !response.ok) {
+                            console.warn(`⚠️ Non-OK response detected for ${resource}: ${response.status}`);
+                        }
+                        return response;
+                    } catch (error) {
+                        console.error('❌ Error:', resource, error);
+                        throw error;
+                    }
+                };
+            }
+
+            const getLogLabel = (element) => {
+                if (!element) return 'Unknown Control';
+                return element.getAttribute('data-log-label')
+                    || element.innerText.trim()
+                    || element.id
+                    || element.name
+                    || element.getAttribute('href')
+                    || 'Unknown Control';
+            };
+
+            document.addEventListener('DOMContentLoaded', function() {
+                document.addEventListener('click', function(event) {
+                    const clickable = event.target.closest('button, a');
+                    if (!clickable) return;
+                    console.log(`👉 Button Clicked: ${getLogLabel(clickable)}`);
+                });
+
+                const botBuilderForm = document.getElementById('botBuilderForm');
+                if (botBuilderForm) {
+                    botBuilderForm.addEventListener('submit', function() {
+                        console.log('📝 Form Submitted: Bot Builder Configuration');
+                    });
+                }
+            });
+        })();
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const wizard = document.getElementById('botBuilderWizard');
+            if (!wizard) return;
+
+            const steps = Array.from(wizard.querySelectorAll('.form-step'));
+            if (!steps.length) return;
+            const pills = Array.from(wizard.querySelectorAll('.form-stepper .step-pill'));
+            const prevBtn = document.getElementById('prevStepBtn');
+            const nextBtn = document.getElementById('nextStepBtn');
+            const completionHint = document.getElementById('wizardCompletionHint');
+            let currentStep = 0;
+
+            const updateStep = (targetIndex) => {
+                if (!steps.length) return;
+                const maxIndex = steps.length - 1;
+                currentStep = Math.max(0, Math.min(targetIndex, maxIndex));
+
+                steps.forEach((step, index) => {
+                    step.classList.toggle('active', index === currentStep);
+                });
+
+                pills.forEach((pill, index) => {
+                    pill.classList.toggle('active', index === currentStep);
+                    pill.classList.toggle('completed', index < currentStep);
+                });
+
+                if (prevBtn) {
+                    prevBtn.disabled = currentStep === 0;
+                }
+
+                if (nextBtn) {
+                    if (currentStep === maxIndex) {
+                        nextBtn.classList.add('d-none');
+                    } else {
+                        nextBtn.classList.remove('d-none');
+                        nextBtn.innerHTML = currentStep === maxIndex - 1
+                            ? 'Review & Finish <i class="fas fa-check ms-1"></i>'
+                            : 'Next Step <i class="fas fa-arrow-right ms-1"></i>';
+                    }
+                }
+
+                if (completionHint) {
+                    completionHint.classList.toggle('d-none', currentStep !== maxIndex);
+                }
+            };
+
+            prevBtn?.addEventListener('click', () => updateStep(currentStep - 1));
+            nextBtn?.addEventListener('click', () => updateStep(currentStep + 1));
+            pills.forEach((pill) => {
+                pill.addEventListener('click', () => {
+                    const target = parseInt(pill.getAttribute('data-step-target'), 10);
+                    if (!isNaN(target)) {
+                        updateStep(target);
+                    }
+                });
+            });
+
+            updateStep(0);
+
+            const stepsContainer = document.getElementById('stepsContainer');
+            const stepsEmptyState = document.getElementById('stepsEmptyState');
+            if (stepsContainer && stepsEmptyState) {
+                const toggleEmptyState = () => {
+                    const hasContent = stepsContainer.children.length > 0;
+                    stepsEmptyState.style.display = hasContent ? 'none' : 'flex';
+                };
+                const observer = new MutationObserver(toggleEmptyState);
+                observer.observe(stepsContainer, { childList: true });
+                toggleEmptyState();
+                window.refreshStepsEmptyState = toggleEmptyState;
+            }
+        });
     </script>
     <style>
         * {
@@ -220,6 +496,395 @@
         .azone-logo-text {
             display: flex;
             flex-direction: column;
+        }
+
+        .dashboard-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px 24px;
+            background: rgba(14, 18, 31, 0.7);
+            border: 1px solid rgba(99, 199, 255, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.4);
+        }
+
+        .dashboard-search {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: rgba(12, 17, 30, 0.8);
+            border: 1px solid rgba(99, 199, 255, 0.2);
+        }
+
+        .dashboard-search input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: #F0F4F8;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .dashboard-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toolbar-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid rgba(99, 199, 255, 0.25);
+            background: rgba(15, 21, 35, 0.9);
+            color: #E2E8F0;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+        }
+
+        .toolbar-btn:hover {
+            color: #63C7FF;
+            transform: translateY(-2px);
+            border-color: rgba(99, 199, 255, 0.5);
+            box-shadow: 0 6px 18px rgba(99, 199, 255, 0.25);
+        }
+
+        .toolbar-user-pill {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(99, 199, 255, 0.3);
+            box-shadow: inset 0 0 15px rgba(99, 199, 255, 0.15);
+        }
+
+        .toolbar-user-pill .pill-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #63C7FF 0%, #A855F7 100%);
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 12px rgba(99, 199, 255, 0.4);
+        }
+
+        .toolbar-user-pill small {
+            color: rgba(226, 232, 240, 0.8);
+            font-size: 0.75rem;
+        }
+
+        .form-wizard {
+            background: rgba(14, 18, 31, 0.7);
+            border: 1px solid rgba(99, 199, 255, 0.15);
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        }
+
+        .form-stepper {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .form-stepper .step-pill {
+            border: 1px solid rgba(99, 199, 255, 0.25);
+            border-radius: 14px;
+            padding: 14px 16px;
+            background: rgba(10, 14, 25, 0.8);
+            color: #a5b4fc;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .form-stepper .step-pill .step-index {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(99, 199, 255, 0.2);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .form-stepper .step-pill.active {
+            border-color: rgba(99, 199, 255, 0.8);
+            background: linear-gradient(135deg, rgba(99, 199, 255, 0.25), rgba(168, 85, 247, 0.25));
+            color: #f8fafc;
+            box-shadow: 0 10px 24px rgba(99, 199, 255, 0.25);
+        }
+
+        .form-stepper .step-pill.completed {
+            border-color: rgba(34, 197, 94, 0.35);
+            color: #86efac;
+        }
+
+        .form-step {
+            display: none;
+            animation: fadeInStep 0.35s ease;
+        }
+
+        .form-step.active {
+            display: block;
+        }
+
+        @keyframes fadeInStep {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-step-nav {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(99, 199, 255, 0.2);
+        }
+
+        .step-builder-card {
+            background: rgba(14, 18, 31, 0.55);
+            border: 1px solid rgba(99, 199, 255, 0.25);
+            border-radius: 18px;
+            padding: 24px;
+        }
+
+        .step-builder-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .step-empty-state {
+            margin-top: 24px;
+            padding: 32px;
+            border: 1px dashed rgba(99, 199, 255, 0.35);
+            border-radius: 16px;
+            text-align: center;
+            color: rgba(240, 244, 248, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .step-empty-state i {
+            font-size: 2rem;
+            color: #63C7FF;
+        }
+
+        .integration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .bot-builder-wizard {
+            position: relative;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(99, 199, 255, 0.12) 100%);
+            border: 1px solid rgba(99, 199, 255, 0.35);
+            border-radius: 24px;
+            padding: 32px;
+            overflow: hidden;
+            box-shadow: 0 20px 55px rgba(0, 0, 0, 0.45);
+        }
+
+        .bot-builder-wizard::after {
+            content: '';
+            position: absolute;
+            top: -60px;
+            right: -60px;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(99, 199, 255, 0.35) 0%, rgba(14, 18, 31, 0) 70%);
+            z-index: 0;
+        }
+
+        .wizard-step-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(99, 199, 255, 0.4);
+            color: #F0F4F8;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .wizard-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            align-items: flex-start;
+            position: relative;
+            z-index: 1;
+        }
+
+        .wizard-description {
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .wizard-description h3 {
+            color: #F8FAFC;
+            font-size: 1.65rem;
+            margin-bottom: 8px;
+        }
+
+        .wizard-description p {
+            color: rgba(248, 250, 252, 0.8);
+            margin-bottom: 0;
+            max-width: 420px;
+            line-height: 1.5;
+        }
+
+        .wizard-form {
+            flex: 1;
+            min-width: 260px;
+            background: rgba(14, 18, 31, 0.55);
+            border: 1px solid rgba(99, 199, 255, 0.25);
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .wizard-form label {
+            font-weight: 600;
+            color: #E2E8F0;
+            margin-bottom: 10px;
+        }
+
+        .wizard-form input,
+        .wizard-form textarea,
+        .wizard-form select {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid rgba(99, 199, 255, 0.35);
+            padding: 12px 16px;
+            background: rgba(15, 19, 33, 0.95);
+            color: #F8FAFC;
+            font-size: 1rem;
+            outline: none;
+            margin-bottom: 8px;
+        }
+
+        .wizard-form small {
+            color: rgba(226, 232, 240, 0.8);
+        }
+
+        .wizard-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .wizard-progress {
+            margin: 18px 0;
+            width: 220px;
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.15);
+            overflow: hidden;
+        }
+
+        .wizard-progress span {
+            display: block;
+            height: 100%;
+            background: linear-gradient(90deg, #63C7FF, #A855F7);
+            width: 20%;
+            transition: width 0.35s ease;
+        }
+
+        .dashboard-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .metric-card {
+            border-radius: 18px;
+            padding: 20px;
+            border: 1px solid rgba(99, 199, 255, 0.15);
+            background: rgba(14, 18, 31, 0.75);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: transform 0.25s ease, border-color 0.25s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(99, 199, 255, 0.35);
+        }
+
+        .metric-card .metric-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        }
+
+        .metric-card .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .metric-card .metric-delta {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .metric-primary .metric-icon {
+            background: linear-gradient(135deg, #2563EB, #3B82F6);
+        }
+
+        .metric-success .metric-icon {
+            background: linear-gradient(135deg, #059669, #10B981);
+        }
+
+        .metric-purple .metric-icon {
+            background: linear-gradient(135deg, #7C3AED, #A855F7);
+        }
+
+        .metric-warning .metric-icon {
+            background: linear-gradient(135deg, #D97706, #F97316);
         }
         
         .bot-builder-card {
@@ -1035,6 +1700,21 @@
             bottom: -6px;
             left: 50%;
             transform: translateX(-50%);
+        }
+        
+        /* CSS Changes from Browser Preview */
+        li.mb-2 {
+            font-family: "Segoe UI";
+        }
+        
+        h6.text-white.mb-0 {
+            font-family: Tahoma;
+            border-radius: 15px;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+            border-bottom-right-radius: 15px;
+            border-bottom-left-radius: 15px;
+            box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.15);
         }
         
         @media (max-width: 768px) {
@@ -1944,6 +2624,43 @@
     </script>
 </head>
 <body>
+    <!-- Settings Overlay and Slide-over Panel -->
+    <div id="settingsOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"></div>
+    <div id="settingsPanel" class="hidden fixed inset-y-0 right-0 z-50 w-full max-w-xl transform translate-x-full transition-transform duration-300">
+        <div class="h-full bg-white text-gray-900 shadow-2xl flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <div>
+                    <p class="text-sm text-gray-500">Settings</p>
+                    <h3 class="text-xl font-semibold">User Profile</h3>
+                </div>
+                <button id="settingsClose" class="text-gray-500 hover:text-gray-800">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-blue-200" placeholder="Your name" value="{{ current_user.username if current_user else '' }}">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input type="text" class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-blue-200" placeholder="+95 ..." value="">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Plan Status</label>
+                    <select class="w-full border rounded-lg px-3 py-2 focus:ring focus:ring-blue-200">
+                        <option>Free</option>
+                        <option>Pro</option>
+                        <option>Business</option>
+                    </select>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t flex items-center justify-between">
+                <div class="text-sm text-gray-500">Signed in as {{ current_user.email if current_user else 'guest' }}</div>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Log Out</a>
+            </div>
+        </div>
+    </div>
     <!-- Sidebar Navigation -->
     <div class="sidebar">
         <div class="sidebar-brand">
@@ -1955,6 +2672,14 @@
                     <i class="fas fa-tools"></i> Bot Builder
                 </a>
             </li>
+            {% if is_admin %}
+            <li>
+                <a href="{{ url_for('admin_home') }}" class="{% if active_menu == 'admin' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt"></i> Admin Panel
+                </a>
+            </li>
+            {% endif %}
+            {% if is_admin %}
             <li>
                 <a href="{{ url_for('templates_page') }}" class="nav-item-templates {% if active_menu == 'templates' %}active{% endif %}" style="position: relative; padding-right: 40px;">
                     <i class="fas fa-layer-group"></i> Templates
@@ -1971,19 +2696,19 @@
                     <i class="fas fa-chart-bar"></i> Analytics
                 </a>
             </li>
-            {# Gemini Chat menu hidden - using mobile app instead #}
-            {# <li>
-                <a href="{{ url_for('gemini_chat_page') }}" class="{% if active_menu == 'gemini-chat' %}active{% endif %}">
-                    <i class="fas fa-comments"></i> Gemini Chat
-                </a>
-            </li> #}
-            {% if current_user and current_user.role == 'owner' %}
+            {% if current_user and current_user.role|lower == 'owner' %}
             <li>
                 <a href="{{ url_for('user_management') }}" class="{% if active_menu == 'users' %}active{% endif %}">
                     <i class="fas fa-users-cog"></i> User Management
                 </a>
             </li>
             {% endif %}
+            {% endif %}
+            <li>
+                <a href="javascript:void(0);" id="sidebar-user-profile" data-log-label="Profile Panel">
+                    <i class="fas fa-user-circle"></i> User Profile
+                </a>
+            </li>
         </ul>
     </div>
 
@@ -2009,12 +2734,38 @@
                 <button type="button" class="btn btn-outline-light btn-sm" id="themeToggleBtn" onclick="window.toggleTheme()" title="Dark/Light Mode Toggle">
                     <i class="fas fa-moon" id="themeIcon"></i>
                 </button>
-                <a href="{{ url_for('bot_builder') }}" class="btn btn-outline-light btn-sm">
-                    <i class="fas fa-home"></i> Dashboard
+                {% if is_admin %}
+                <a href="{{ url_for('admin_home') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-tachometer-alt"></i> Admin Panel
                 </a>
+                {% endif %}
                 <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
+            </div>
+        </div>
+        <div class="dashboard-toolbar mb-4">
+            <div class="dashboard-search">
+                <i class="fas fa-search text-muted"></i>
+                <input type="text" id="dashboardQuickSearch" placeholder="ရှာဖွေရန်..." aria-label="Dashboard quick search">
+            </div>
+            <div class="dashboard-toolbar-actions">
+                <button type="button" class="toolbar-btn" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                </button>
+                <button type="button" class="toolbar-btn" title="Support Center">
+                    <i class="fas fa-headset"></i>
+                </button>
+                <div class="toolbar-user-pill">
+                    <div class="pill-avatar">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <strong>{{ current_user.username if current_user else 'Guest' }}</strong><br>
+                        <small>{{ current_user.role if current_user else 'Viewer' }}</small>
+                    </div>
+                    <i class="fas fa-chevron-down text-muted"></i>
+                </div>
             </div>
         </div>
         {% set can_edit = current_user and current_user.role in ['owner', 'editor'] %}
@@ -2047,6 +2798,101 @@
         </style>
 
         {% if active_menu == 'bot-builder' %}
+        <div class="bot-builder-wizard mb-4" id="miniBotBuilderWizard">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+                <div class="wizard-step-pill" id="wizardStepPill">
+                    <i class="fas fa-route"></i>
+                    <span id="wizardStepText">Step 1 of 5</span>
+                </div>
+                <div class="wizard-progress">
+                    <span id="wizardProgressIndicator" style="width:20%;"></span>
+                </div>
+            </div>
+            <div class="wizard-content">
+                <div class="wizard-description">
+                    <p class="text-uppercase text-muted mb-2" style="letter-spacing: 0.15em;">Mini Bot Builder</p>
+                    <h3 id="wizardTitle">Step-by-Step Setup</h3>
+                    <p id="wizardSubtitle">Use this guided wizard to set up your Telegram bot quickly.</p>
+                </div>
+                <div class="wizard-form">
+                    <label id="wizardFieldLabel" class="form-label" for="wizardFieldInput">Telegram Bot Token</label>
+                    <div id="wizardFieldContainer">
+                        <input type="text" class="form-control" id="wizardFieldInput" placeholder="Ex: 123456:ABC-DEF1234ghIkl..." autocomplete="off">
+                    </div>
+                    <small id="wizardFieldHint">Don't worry, your token is stored securely ❤️</small>
+                    <div class="wizard-actions">
+                        <button type="button" class="btn btn-outline-secondary" id="wizardBackBtn" disabled>
+                            <i class="fas fa-arrow-left me-1"></i> Back
+                        </button>
+                        <button type="button" class="btn btn-primary" id="wizardNextBtn">
+                            Next <i class="fas fa-arrow-right ms-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% set hero_metrics = [
+            {
+                'label': 'အသုံးပြုသူအသစ်များ',
+                'subtitle': 'ပြီးခဲ့သော ၇ ရက်',
+                'value': 0,
+                'icon': 'fa-user-plus',
+                'variant': 'primary',
+                'delta_label': '↑ 0%',
+                'delta_color': 'text-success',
+                'delta_caption': 'ယခုအပတ်'
+            },
+            {
+                'label': 'လုပ်ငန်းစဉ် ဖန်တီးမှုများ',
+                'subtitle': 'Bot Builder မှ',
+                'value': 0,
+                'icon': 'fa-diagram-project',
+                'variant': 'success',
+                'delta_label': '↑ 0%',
+                'delta_color': 'text-success',
+                'delta_caption': 'Flow အသစ်များ'
+            },
+            {
+                'label': 'အဖွဲ့ဝင်များ',
+                'subtitle': 'စုစုပေါင်း အဖွဲ့',
+                'value': 0,
+                'icon': 'fa-users',
+                'variant': 'purple',
+                'delta_label': '→ 0%',
+                'delta_color': 'text-warning',
+                'delta_caption': 'တိုးတက်မှု'
+            },
+            {
+                'label': 'လစဉ်ဝင်ငွေ',
+                'subtitle': 'အမေရိကန် ဒေါ်လာ',
+                'value': '$0',
+                'icon': 'fa-sack-dollar',
+                'variant': 'warning',
+                'delta_label': '↑ 0%',
+                'delta_color': 'text-success',
+                'delta_caption': 'စတင်အသုံးပြုပါ'
+            }
+        ] %}
+        <div class="dashboard-metrics-grid mb-4">
+            {% for metric in hero_metrics %}
+            <div class="metric-card metric-{{ metric.variant }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">{{ metric.subtitle }}</p>
+                        <h6 class="text-white mb-2">{{ metric.label }}</h6>
+                        <div class="metric-value">{{ metric.value }}</div>
+                    </div>
+                    <div class="metric-icon">
+                        <i class="fas {{ metric.icon }}"></i>
+                    </div>
+                </div>
+                <div class="metric-delta">
+                    <span class="{{ metric.delta_color }}">{{ metric.delta_label }}</span>
+                    <small class="text-muted">{{ metric.delta_caption }}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
         <!-- Bot Builder View -->
         <div class="bot-builder-card">
             <h2 class="mb-4">
@@ -2182,10 +3028,10 @@
                                             
                                             <!-- Action Buttons -->
                                             <div class="d-flex gap-2 mt-auto">
-                                                <button type="button" class="btn btn-sm flex-fill" onclick="window.loadTemplate('{{ t.id }}')" {% if not can_edit %}disabled title="Viewer role များအတွက် Template load လုပ်ခွင့်မရှိပါ"{% endif %} style="background: rgba(99, 199, 255, 0.1); color: #63C7FF; border: 1px solid rgba(99, 199, 255, 0.3); border-radius: 8px; padding: 8px 12px; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(99, 199, 255, 0.2)'; this.style.borderColor='rgba(99, 199, 255, 0.5)';" onmouseout="this.style.background='rgba(99, 199, 255, 0.1)'; this.style.borderColor='rgba(99, 199, 255, 0.3)';">
+                                                <button type="button" class="btn btn-sm flex-fill" data-log-label="Load Template" onclick="window.loadTemplate('{{ t.id }}')" {% if not can_edit %}disabled title="Viewer role များအတွက် Template load လုပ်ခွင့်မရှိပါ"{% endif %} style="background: rgba(99, 199, 255, 0.1); color: #63C7FF; border: 1px solid rgba(99, 199, 255, 0.3); border-radius: 8px; padding: 8px 12px; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(99, 199, 255, 0.2)'; this.style.borderColor='rgba(99, 199, 255, 0.5)';" onmouseout="this.style.background='rgba(99, 199, 255, 0.1)'; this.style.borderColor='rgba(99, 199, 255, 0.3)';">
                                                     <i class="fas fa-download"></i> Load
                                                 </button>
-                                                <button type="button" class="btn btn-sm flex-fill" onclick="window.useTemplate('{{ t.id }}')" {% if not can_edit %}disabled title="Viewer role များအတွက် Template သုံးခွင့်မရှိပါ"{% endif %} style="
+                                                <button type="button" class="btn btn-sm flex-fill" data-log-label="Create Bot" onclick="window.useTemplate('{{ t.id }}')" {% if not can_edit %}disabled title="Viewer role များအတွက် Template သုံးခွင့်မရှိပါ"{% endif %} style="
                                                     {% if t.platform == 'telegram' %}background: linear-gradient(135deg, #0088cc 0%, #229ED9 100%);
                                                     {% elif t.platform == 'facebook' %}background: linear-gradient(135deg, #0078FF 0%, #1877F2 100%);
                                                     {% elif t.platform == 'youtube' %}background: linear-gradient(135deg, #FF0000 0%, #FF4444 100%);
@@ -2247,214 +3093,273 @@
                     {% endif %}
                 </div>
                 {% endif %}
-                
-                <!-- Bot Name Input -->
-                <div class="mb-4">
-                    <label for="botName" class="form-label">
-                        <i class="fas fa-tag"></i> Bot Name
-                    </label>
-                    <div class="d-flex align-items-center gap-2">
-                        <input 
-                            type="text" 
-                            class="form-control form-control-lg" 
-                            id="botName" 
-                            name="botName" 
-                            placeholder="Enter your bot name (e.g., Customer Support Bot)"
-                            value="{% if bot_data %}{{ bot_data.bot_name }}{% endif %}"
-                            required
-                            data-validate="botName|minLength:2|maxLength:50"
-                            minlength="2"
-                            maxlength="50"
-                        >
-                        {% if bot_data and bot_data.status %}
-                            {% if bot_data.status == 'draft' %}
-                                <span class="badge bg-warning text-dark" style="font-size: 0.9rem; white-space: nowrap;">
-                                    <i class="fas fa-edit"></i> Draft
-                                </span>
-                            {% elif bot_data.status == 'published' %}
-                                <span class="badge bg-success" style="font-size: 0.9rem; white-space: nowrap;">
-                                    <i class="fas fa-check-circle"></i> Live
-                                </span>
-                            {% endif %}
-                        {% endif %}
+
+                <div class="form-wizard" id="botBuilderWizard">
+                    <div class="form-stepper" id="formStepper">
+                        <button type="button" class="step-pill active" data-step-target="0">
+                            <span class="step-index">1</span>
+                            <div>
+                                <strong>Bot Basics</strong>
+                                <small>Name & role</small>
+                            </div>
+                        </button>
+                        <button type="button" class="step-pill" data-step-target="1">
+                            <span class="step-index">2</span>
+                            <div>
+                                <strong>Greeting</strong>
+                                <small>Welcome text</small>
+                            </div>
+                        </button>
+                        <button type="button" class="step-pill" data-step-target="2">
+                            <span class="step-index">3</span>
+                            <div>
+                                <strong>Flow Builder</strong>
+                                <small>Conversation steps</small>
+                            </div>
+                        </button>
+                        <button type="button" class="step-pill" data-step-target="3">
+                            <span class="step-index">4</span>
+                            <div>
+                                <strong>Integrations</strong>
+                                <small>Connect channels</small>
+                            </div>
+                        </button>
+                        <button type="button" class="step-pill" data-step-target="4">
+                            <span class="step-index">5</span>
+                            <div>
+                                <strong>Review</strong>
+                                <small>Save & publish</small>
+                            </div>
+                        </button>
                     </div>
-                    <small class="form-text text-muted">Give your bot a unique and descriptive name</small>
-                </div>
 
-                <!-- Initial Greeting Textarea -->
-                <div class="mb-4">
-                    <label for="initialGreeting" class="form-label">
-                        <i class="fas fa-comment-dots"></i> Initial Greeting
-                    </label>
-                    <textarea 
-                        class="form-control" 
-                        id="initialGreeting" 
-                        name="initialGreeting" 
-                        rows="4" 
-                        placeholder="Enter the greeting message that your bot will send when users first interact (e.g., Hello! Welcome to our service. How can I help you today?)"
-                        required
-                        data-validate="minLength:10|maxLength:500"
-                        minlength="10"
-                        maxlength="500"
-                    >{% if bot_data %}{{ bot_data.initial_greeting }}{% endif %}</textarea>
-                    <small class="form-text text-muted">This message will be sent automatically when a user starts a conversation</small>
-                </div>
+                    <div class="form-step active" data-step-index="0">
+                        <label for="botName" class="form-label">
+                            <i class="fas fa-tag"></i> Bot Name
+                        </label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input 
+                                type="text" 
+                                class="form-control form-control-lg" 
+                                id="botName" 
+                                name="botName" 
+                                placeholder="Enter your bot name (e.g., Customer Support Bot)"
+                                value="{% if bot_data %}{{ bot_data.bot_name }}{% endif %}"
+                                required
+                                data-validate="botName|minLength:2|maxLength:50"
+                                minlength="2"
+                                maxlength="50"
+                            >
+                            {% if bot_data and bot_data.status %}
+                                {% if bot_data.status == 'draft' %}
+                                    <span class="badge bg-warning text-dark" style="font-size: 0.9rem; white-space: nowrap;">
+                                        <i class="fas fa-edit"></i> Draft
+                                    </span>
+                                {% elif bot_data.status == 'published' %}
+                                    <span class="badge bg-success" style="font-size: 0.9rem; white-space: nowrap;">
+                                        <i class="fas fa-check-circle"></i> Live
+                                    </span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <small class="form-text text-muted">Give your bot a unique and descriptive name</small>
+                    </div>
 
-                <!-- Add New Step Button -->
-                <div class="mb-4">
-                    <button type="button" class="btn btn-add-step" id="addStepBtn" {% if not can_edit %}disabled title="Viewer role များအတွက် Step ထည့်ခွင့်မရှိပါ"{% endif %}>
-                        <i class="fas fa-plus-circle"></i> Add New Step
-                    </button>
-                    <small class="form-text text-muted d-block mt-2">Add conversation steps to build your bot's flow</small>
-                </div>
+                    <div class="form-step" data-step-index="1">
+                        <label for="initialGreeting" class="form-label">
+                            <i class="fas fa-comment-dots"></i> Initial Greeting
+                        </label>
+                        <textarea 
+                            class="form-control" 
+                            id="initialGreeting" 
+                            name="initialGreeting" 
+                            rows="4" 
+                            placeholder="Enter the greeting message that your bot will send when users first interact (e.g., Hello! Welcome to our service. How can I help you today?)"
+                            required
+                            data-validate="minLength:10|maxLength:500"
+                            minlength="10"
+                            maxlength="500"
+                        >{% if bot_data %}{{ bot_data.initial_greeting }}{% endif %}</textarea>
+                        <small class="form-text text-muted">This message will be sent automatically when a user starts a conversation</small>
+                    </div>
 
-                <!-- Steps Container (for dynamically added steps) -->
-                <div id="stepsContainer" class="mt-4">
-                    <!-- Steps will be added here dynamically -->
-                </div>
+                    <div class="form-step" data-step-index="2">
+                        <div class="step-builder-card">
+                            <div class="step-builder-header">
+                                <div>
+                                    <h5 class="mb-1 text-white">Conversation Flow</h5>
+                                    <p class="text-muted mb-0">Organize questions, replies, and branching logic.</p>
+                                </div>
+                                <button type="button" class="btn btn-add-step" id="addStepBtn" data-log-label="Add Step" {% if not can_edit %}disabled title="Viewer role များအတွက် Step ထည့်ခွင့်မရှိပါ"{% endif %}>
+                                    <i class="fas fa-plus-circle"></i> Add New Step
+                                </button>
+                            </div>
+                            <div id="stepsContainer" class="mt-4">
+                                <!-- Steps will be added here dynamically -->
+                            </div>
+                            <div id="stepsEmptyState" class="step-empty-state">
+                                <i class="fas fa-route"></i>
+                                <p class="mb-0">No steps yet. Click “Add New Step” to start designing your flow.</p>
+                                <small class="text-muted">Mix message, question, API, and webhook actions.</small>
+                            </div>
+                        </div>
+                    </div>
 
-                <!-- Submit Button -->
-                <div class="mt-4 pt-4 border-top">
-                    <button type="submit" class="btn btn-primary btn-lg" {% if not can_edit %}disabled title="Viewer role များအတွက် Save ခွင့်မရှိပါ"{% endif %}>
-                        <i class="fas fa-save"></i> Save Bot Configuration
-                    </button>
-                    <button type="button" class="btn btn-success btn-lg ms-2" id="publishBotBtn" onclick="publishBot()" {% if not can_edit %}disabled title="Viewer role များအတွက် Publish ခွင့်မရှိပါ"{% endif %}>
-                        <i class="fas fa-rocket"></i> Publish
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-lg ms-2">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
+                    <div class="form-step" data-step-index="3">
+                        <div class="integration-grid">
+                            <div class="card h-100" style="background: rgba(14, 18, 31, 0.6); border: 1px solid rgba(99, 199, 255, 0.2);">
+                                <div class="card-header" style="background: rgba(14, 18, 31, 0.8); border-bottom: 1px solid rgba(99, 199, 255, 0.2);">
+                                    <h5 class="mb-0"><i class="fab fa-telegram" style="color: #0088cc;"></i> Telegram Integration</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if bot_data %}
+                                    <div id="telegram-status-{{ bot_data.bot_name|replace(' ', '_') }}" class="mb-3">
+                                        <p class="text-muted mb-2">
+                                            Status: <span id="telegram-status-text-{{ bot_data.bot_name|replace(' ', '_') }}" class="badge bg-secondary">Checking...</span>
+                                        </p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-white">
+                                            <i class="fas fa-key"></i> Telegram Bot Token
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            class="form-control bg-dark text-white border-secondary" 
+                                            id="telegram-token-{{ bot_data.bot_name|replace(' ', '_') }}" 
+                                            placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+                                        >
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> Get token from <a href="https://t.me/BotFather" target="_blank" class="text-info">@BotFather</a>.
+                                        </small>
+                                    </div>
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <button 
+                                            class="btn btn-primary" 
+                                            onclick="connectTelegram('{{ bot_data.bot_name }}')"
+                                            {% if not can_edit %}disabled title="Viewer role များအတွက် Telegram connect ခွင့်မရှိပါ"{% endif %}
+                                        >
+                                            <i class="fab fa-telegram"></i> Connect
+                                        </button>
+                                        <button 
+                                            class="btn btn-secondary" 
+                                            onclick="disconnectTelegram('{{ bot_data.bot_name }}')"
+                                            {% if not can_edit %}disabled title="Viewer role များအတွက် Telegram disconnect ခွင့်မရှိပါ"{% endif %}
+                                        >
+                                            <i class="fas fa-unlink"></i> Disconnect
+                                        </button>
+                                        <button 
+                                            class="btn btn-outline-info" 
+                                            onclick="checkTelegramStatus('{{ bot_data.bot_name }}')"
+                                        >
+                                            <i class="fas fa-sync"></i> Refresh
+                                        </button>
+                                    </div>
+                                    <div class="alert alert-info mt-3 mb-0" role="alert" style="background: rgba(13, 110, 253, 0.1); border-color: rgba(13, 110, 253, 0.3);">
+                                        <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> After connecting, users can chat with your bot by searching for its username or sending /start.
+                                    </div>
+                                    {% else %}
+                                    <div class="alert alert-warning mb-0" role="alert" style="background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.3);">
+                                        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Telegram integration is available after you save a bot.
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card h-100" style="background: rgba(14, 18, 31, 0.6); border: 1px solid rgba(24, 119, 242, 0.2);">
+                                <div class="card-header" style="background: rgba(14, 18, 31, 0.8); border-bottom: 1px solid rgba(24, 119, 242, 0.2);">
+                                    <h5 class="mb-0"><i class="fab fa-facebook-messenger" style="color: #1877f2;"></i> Facebook Messenger Integration</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if bot_data %}
+                                    <div id="facebook-status-{{ bot_data.bot_name|replace(' ', '_') }}" class="mb-3">
+                                        <p class="text-muted mb-2">
+                                            Status: <span id="facebook-status-text-{{ bot_data.bot_name|replace(' ', '_') }}" class="badge bg-secondary">Checking...</span>
+                                        </p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-white">
+                                            <i class="fas fa-key"></i> Facebook Page Access Token
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            class="form-control bg-dark text-white border-secondary" 
+                                            id="facebook-token-{{ bot_data.bot_name|replace(' ', '_') }}" 
+                                            placeholder="EAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                        >
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> Get Page Access Token from <a href="https://developers.facebook.com/apps" target="_blank" class="text-info">Facebook Developers</a>.
+                                        </small>
+                                    </div>
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <button 
+                                            class="btn btn-primary" 
+                                            onclick="connectFacebook('{{ bot_data.bot_name }}')"
+                                            {% if not can_edit %}disabled title="Viewer role များအတွက် Facebook connect ခွင့်မရှိပါ"{% endif %}
+                                        >
+                                            <i class="fab fa-facebook-messenger"></i> Connect
+                                        </button>
+                                        <button 
+                                            class="btn btn-secondary" 
+                                            onclick="disconnectFacebook('{{ bot_data.bot_name }}')"
+                                            {% if not can_edit %}disabled title="Viewer role များအတွက် Facebook disconnect ခွင့်မရှိပါ"{% endif %}
+                                        >
+                                            <i class="fas fa-unlink"></i> Disconnect
+                                        </button>
+                                        <button 
+                                            class="btn btn-outline-info" 
+                                            onclick="checkFacebookStatus('{{ bot_data.bot_name }}')"
+                                        >
+                                            <i class="fas fa-sync"></i> Refresh
+                                        </button>
+                                    </div>
+                                    <div class="alert alert-info mt-3 mb-0" role="alert" style="background: rgba(24, 119, 242, 0.1); border-color: rgba(24, 119, 242, 0.3);">
+                                        <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> After connecting, configure webhook URL in Facebook Developer Console: 
+                                        <code id="facebookWebhookUrl">Loading...</code>
+                                        <button class="btn btn-sm btn-outline-light ms-2" onclick="copyWebhookUrl()" title="Copy Webhook URL">
+                                            <i class="fas fa-copy"></i> Copy
+                                        </button>
+                                        <br><small class="mt-2 d-block">Verify Token: <code id="facebookVerifyToken">azone_bot_verify_token</code></small>
+                                    </div>
+                                    {% else %}
+                                    <div class="alert alert-warning mb-0" role="alert" style="background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.3);">
+                                        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Facebook Messenger integration is available after you create and save a bot.
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-step" data-step-index="4">
+                        <div class="step-builder-card">
+                            <h5 class="text-white mb-2">Review & Actions</h5>
+                            <p class="text-muted mb-4">Review your configuration, then save a draft or publish to go live.</p>
+                            <div class="mt-2 pt-3 border-top">
+                                <button type="submit" class="btn btn-primary btn-lg" data-log-label="Save Bot" {% if not can_edit %}disabled title="Viewer role များအတွက် Save ခွင့်မရှိပါ"{% endif %}>
+                                    <i class="fas fa-save"></i> Save Bot Configuration
+                                </button>
+                                <button type="button" class="btn btn-success btn-lg ms-2" id="publishBotBtn" data-log-label="Publish Bot" onclick="publishBot()" {% if not can_edit %}disabled title="Viewer role များအတွက် Publish ခွင့်မရှိပါ"{% endif %}>
+                                    <i class="fas fa-rocket"></i> Publish
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-lg ms-2">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-step-nav">
+                        <button type="button" class="btn btn-outline-secondary" id="prevStepBtn">
+                            <i class="fas fa-arrow-left me-1"></i> Previous
+                        </button>
+                        <div class="d-flex gap-2 align-items-center justify-content-end flex-wrap">
+                            <button type="button" class="btn btn-primary" id="nextStepBtn">
+                                Next Step <i class="fas fa-arrow-right ms-1"></i>
+                            </button>
+                            <span id="wizardCompletionHint" class="text-muted small d-none">You're on the final step. Use the buttons above to finish.</span>
+                        </div>
+                    </div>
                 </div>
             </form>
-            
-            <!-- Telegram Integration Section -->
-            <div class="card mt-4" style="background: rgba(14, 18, 31, 0.6); border: 1px solid rgba(99, 199, 255, 0.2);">
-                <div class="card-header" style="background: rgba(14, 18, 31, 0.8); border-bottom: 1px solid rgba(99, 199, 255, 0.2);">
-                    <h5 class="mb-0"><i class="fab fa-telegram" style="color: #0088cc;"></i> Telegram Integration</h5>
-                </div>
-                <div class="card-body">
-                    {% if bot_data %}
-                    <div id="telegram-status-{{ bot_data.bot_name|replace(' ', '_') }}" class="mb-3">
-                        <p class="text-muted mb-2">
-                            Status: <span id="telegram-status-text-{{ bot_data.bot_name|replace(' ', '_') }}" class="badge bg-secondary">Checking...</span>
-                        </p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-white">
-                            <i class="fas fa-key"></i> Telegram Bot Token
-                        </label>
-                        <input 
-                            type="text" 
-                            class="form-control bg-dark text-white border-secondary" 
-                            id="telegram-token-{{ bot_data.bot_name|replace(' ', '_') }}" 
-                            placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-                        >
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Get token from <a href="https://t.me/BotFather" target="_blank" class="text-info">@BotFather</a> on Telegram. 
-                            Send <code>/newbot</code> command to create a new bot.
-                        </small>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button 
-                            class="btn btn-primary" 
-                            onclick="connectTelegram('{{ bot_data.bot_name }}')"
-                            {% if not can_edit %}disabled title="Viewer role များအတွက် Telegram connect ခွင့်မရှိပါ"{% endif %}
-                        >
-                            <i class="fab fa-telegram"></i> Connect to Telegram
-                        </button>
-                        <button 
-                            class="btn btn-secondary" 
-                            onclick="disconnectTelegram('{{ bot_data.bot_name }}')"
-                            {% if not can_edit %}disabled title="Viewer role များအတွက် Telegram disconnect ခွင့်မရှိပါ"{% endif %}
-                        >
-                            <i class="fas fa-unlink"></i> Disconnect
-                        </button>
-                        <button 
-                            class="btn btn-outline-info" 
-                            onclick="checkTelegramStatus('{{ bot_data.bot_name }}')"
-                        >
-                            <i class="fas fa-sync"></i> Refresh Status
-                        </button>
-                    </div>
-                    <div class="alert alert-info mt-3 mb-0" role="alert" style="background: rgba(13, 110, 253, 0.1); border-color: rgba(13, 110, 253, 0.3);">
-                        <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> After connecting, users can chat with your bot on Telegram by searching for your bot's username or using the /start command.
-                    </div>
-                    {% else %}
-                    <div class="alert alert-warning mb-0" role="alert" style="background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.3);">
-                        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Telegram integration is available after you create and save a bot. 
-                        Please create a bot first, then come back to connect it to Telegram.
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <!-- Facebook Messenger Integration Section -->
-            <div class="card mt-4" style="background: rgba(14, 18, 31, 0.6); border: 1px solid rgba(24, 119, 242, 0.2);">
-                <div class="card-header" style="background: rgba(14, 18, 31, 0.8); border-bottom: 1px solid rgba(24, 119, 242, 0.2);">
-                    <h5 class="mb-0"><i class="fab fa-facebook-messenger" style="color: #1877f2;"></i> Facebook Messenger Integration</h5>
-                </div>
-                <div class="card-body">
-                    {% if bot_data %}
-                    <div id="facebook-status-{{ bot_data.bot_name|replace(' ', '_') }}" class="mb-3">
-                        <p class="text-muted mb-2">
-                            Status: <span id="facebook-status-text-{{ bot_data.bot_name|replace(' ', '_') }}" class="badge bg-secondary">Checking...</span>
-                        </p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-white">
-                            <i class="fas fa-key"></i> Facebook Page Access Token
-                        </label>
-                        <input 
-                            type="text" 
-                            class="form-control bg-dark text-white border-secondary" 
-                            id="facebook-token-{{ bot_data.bot_name|replace(' ', '_') }}" 
-                            placeholder="EAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                        >
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Get Page Access Token from <a href="https://developers.facebook.com/apps" target="_blank" class="text-info">Facebook Developers</a>. 
-                            See setup guide for detailed instructions.
-                        </small>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button 
-                            class="btn btn-primary" 
-                            onclick="connectFacebook('{{ bot_data.bot_name }}')"
-                            {% if not can_edit %}disabled title="Viewer role များအတွက် Facebook connect ခွင့်မရှိပါ"{% endif %}
-                        >
-                            <i class="fab fa-facebook-messenger"></i> Connect to Facebook
-                        </button>
-                        <button 
-                            class="btn btn-secondary" 
-                            onclick="disconnectFacebook('{{ bot_data.bot_name }}')"
-                            {% if not can_edit %}disabled title="Viewer role များအတွက် Facebook disconnect ခွင့်မရှိပါ"{% endif %}
-                        >
-                            <i class="fas fa-unlink"></i> Disconnect
-                        </button>
-                        <button 
-                            class="btn btn-outline-info" 
-                            onclick="checkFacebookStatus('{{ bot_data.bot_name }}')"
-                        >
-                            <i class="fas fa-sync"></i> Refresh Status
-                        </button>
-                    </div>
-                    <div class="alert alert-info mt-3 mb-0" role="alert" style="background: rgba(24, 119, 242, 0.1); border-color: rgba(24, 119, 242, 0.3);">
-                        <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> After connecting, configure webhook URL in Facebook Developer Console: 
-                        <code id="facebookWebhookUrl">Loading...</code>
-                        <button class="btn btn-sm btn-outline-light ms-2" onclick="copyWebhookUrl()" title="Copy Webhook URL">
-                            <i class="fas fa-copy"></i> Copy
-                        </button>
-                        <br><small class="mt-2 d-block">Verify Token: <code id="facebookVerifyToken">azone_bot_verify_token</code></small>
-                    </div>
-                    {% else %}
-                    <div class="alert alert-warning mb-0" role="alert" style="background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.3);">
-                        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Facebook Messenger integration is available after you create and save a bot. 
-                        Please create a bot first, then come back to connect it to Facebook Messenger.
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            </div>
-            <!-- End Form View Container -->
 
             <!-- Visual Flow View Container -->
             <div id="flowViewContainer" style="display: none;">
@@ -7283,6 +8188,36 @@
             {% if bot_data %}
             loadExistingBotData();
             {% endif %}
+        });
+    </script>
+
+    <!-- Slide-over Settings Panel Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('settingsOverlay');
+            const panel = document.getElementById('settingsPanel');
+            const profileTrigger = document.getElementById('sidebar-user-profile');
+            const closeBtn = document.getElementById('settingsClose');
+
+            function openPanel() {
+                if (!overlay || !panel) return;
+                overlay.classList.remove('hidden');
+                panel.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    panel.classList.remove('translate-x-full');
+                });
+            }
+
+            function closePanel() {
+                if (!overlay || !panel) return;
+                panel.classList.add('translate-x-full');
+                overlay.classList.add('hidden');
+                setTimeout(() => panel.classList.add('hidden'), 250);
+            }
+
+            if (profileTrigger) profileTrigger.addEventListener('click', openPanel);
+            if (closeBtn) closeBtn.addEventListener('click', closePanel);
+            if (overlay) overlay.addEventListener('click', closePanel);
         });
     </script>
 </body>
